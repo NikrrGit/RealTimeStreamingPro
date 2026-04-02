@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   spark-master:
     container_name: spark-master
@@ -13,8 +11,8 @@ services:
       - ./jobs:/opt/bitnami/spark/jobs
       - ./datasets:/opt/bitnami/spark/datasets
     ports:
-      - "9090:8080"
-      - "7077:7077"
+      - "${SPARK_MASTER_WEB_PORT:-9090}:8080"
+      - "${SPARK_MASTER_PORT:-7077}:7077"
     networks:
       - rts-nik
 
@@ -24,7 +22,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.spark
-    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://${SPARK_MASTER_HOST:-spark-master}:${SPARK_MASTER_PORT:-7077}
     volumes:
       - ./config:/opt/bitnami/spark/config
       - ./jobs:/opt/bitnami/spark/jobs
@@ -35,7 +33,7 @@ services:
       SPARK_MODE: worker
       SPARK_WORKER_CORES: 2
       SPARK_WORKER_MEMORY: 1g
-      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_MASTER_URL: spark://${SPARK_MASTER_HOST:-spark-master}:${SPARK_MASTER_PORT:-7077}
     networks:
       - rts-nik
 

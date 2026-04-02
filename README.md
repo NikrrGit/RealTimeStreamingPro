@@ -19,3 +19,26 @@ This setup is ideal for learning and testing Spark Streaming in a controlled, re
 - Python: For the socket server and Spark streaming job.
 - PySpark: Spark’s Python API for streaming and processing.
 - Pandas: For handling data in the socket server.
+
+## Configuration
+The project no longer depends on machine-specific paths or IP addresses. Configure runtime values with environment variables or CLI flags.
+
+- `STREAM_INPUT_PATH`: path to the review dataset file.
+- `STREAM_BIND_HOST`: host/interface for the socket server to bind to. Default: `0.0.0.0`
+- `STREAM_SOCKET_HOST`: host the Spark job connects to. Default: `localhost`
+- `STREAM_SOCKET_PORT`: shared socket port for both scripts. Default: `9999`
+- `STREAM_CHUNK_SIZE`: number of records sent per batch. Default: `2`
+- `STREAM_SEND_DELAY_SECONDS`: delay between records. Default: `5`
+- `SPARK_MASTER`: optional Spark master URL for the consumer job.
+- `SPARK_MASTER_HOST`, `SPARK_MASTER_PORT`, `SPARK_MASTER_WEB_PORT`: optional Docker Compose overrides.
+- `OPENAI_API_KEY`: optional API key if you later add OpenAI-backed processing.
+
+Examples:
+
+```bash
+STREAM_INPUT_PATH="/path/to/yelp_reviews.json" venv/bin/python src/jobs/streaming-socket.py
+```
+
+```bash
+STREAM_SOCKET_HOST=127.0.0.1 STREAM_SOCKET_PORT=9999 venv/bin/python src/jobs/spark-streaming.py
+```
