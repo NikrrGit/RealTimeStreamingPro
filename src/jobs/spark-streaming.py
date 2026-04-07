@@ -1,5 +1,6 @@
 import argparse
 import os
+import subprocess
 import sys
 
 from pyspark.sql import SparkSession
@@ -12,6 +13,30 @@ src_dir = os.path.dirname(current_dir)
 sys.path.insert(0, src_dir)
 
 from config.config import config
+
+
+def configure_java_home():
+    configured_java_home = os.getenv("SPARK_JAVA_HOME")
+    if configured_java_home:
+        os.environ["JAVA_HOME"] = configured_java_home
+        return
+
+    current_java_home = os.getenv("JAVA_HOME", "")
+    if sys.platform != "darwin" or "23." not in current_java_home:
+        return
+
+    try:
+        detected_java_home = subprocess.run(
+            ["/usr/libexec/java_home", "-v", "21"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return
+
+    if detected_java_home:
+        os.environ["JAVA_HOME"] = detected_java_home
 
 
 def parse_args():
@@ -75,11 +100,14 @@ def start_streaming(spark, host, port):
             .start()
         )
         query.awaitTermination()
+    except KeyboardInterrupt:
+        print("Streaming stopped.")
     except Exception as exc:
         print(f"Error: {exc}")
 
 
 if __name__ == "__main__":
+    configure_java_home()
     args = parse_args()
     spark_conn = build_spark_session(args.spark_master)
     start_streaming(spark_conn, args.host, args.port)

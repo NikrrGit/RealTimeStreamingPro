@@ -42,3 +42,19 @@ STREAM_INPUT_PATH="/path/to/yelp_reviews.json" venv/bin/python src/jobs/streamin
 ```bash
 STREAM_SOCKET_HOST=127.0.0.1 STREAM_SOCKET_PORT=9999 venv/bin/python src/jobs/spark-streaming.py
 ```
+
+The socket server now normalizes the dataset path by trimming accidental whitespace, expanding `~`, resolving relative paths, and failing fast with a clear error if the file does not exist.
+
+For a quick end-to-end local check, the repo includes [sample_reviews.json](/Users/macbook/Projects/RealTimeStreaming/src/datasets/Yelp%20JSON/sample_reviews.json). Run the socket server in one terminal:
+
+```bash
+venv/bin/python src/jobs/streaming-socket.py --file-path "src/datasets/Yelp JSON/sample_reviews.json" --host 127.0.0.1 --port 9999 --chunk-size 1 --send-delay 0.2
+```
+
+Then run the Spark consumer in another:
+
+```bash
+venv/bin/python src/jobs/spark-streaming.py --host 127.0.0.1 --port 9999
+```
+
+On macOS, the consumer now automatically falls back from Java 23 to Java 21 when Java 21 is installed. You can also set `SPARK_JAVA_HOME` explicitly if needed.

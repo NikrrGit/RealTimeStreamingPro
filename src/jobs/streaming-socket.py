@@ -57,39 +57,65 @@ def parse_args():
     return parser.parse_args()
 
 
+def resolve_input_path(file_path):
+    normalized_path = Path(file_path.strip()).expanduser()
+    if not normalized_path.is_absolute():
+        normalized_path = (Path.cwd() / normalized_path).resolve()
+    else:
+        normalized_path = normalized_path.resolve()
+
+    if not normalized_path.is_file():
+        raise FileNotFoundError(
+            f"Dataset file not found: {normalized_path}. "
+            "Provide a valid file with --file-path or STREAM_INPUT_PATH."
+        )
+
+    return normalized_path
+
+
 def send_data_over_socket(file_path, host, port, chunk_size, send_delay):
+    input_path = resolve_input_path(file_path)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))
     s.listen(1)
+    print(f"Streaming records from {input_path}")
     print(f"Listening for connections on {host}:{port}")
 
     last_sent_index = 0
-    while True:
-        conn, addr = s.accept()
-        print(f"Connection from {addr}")
-        try:
-            with open(file_path, "r", encoding="utf-8") as file:
-                for _ in range(last_sent_index):
-                    next(file)
+    try:
+        while True:
+            conn, addr = s.accept()
+            print(f"Connection from {addr}")
+            try:
+                with input_path.open("r", encoding="utf-8") as file:
+                    for _ in range(last_sent_index):
+                        next(file)
 
-                records = []
-                for line in file:
-                    records.append(json.loads(line))
-                    if len(records) == chunk_size:
-                        chunk = pd.DataFrame(records)
-                        print(chunk)
-                        for record in chunk.to_dict(orient="records"):
-                            serialized_data = json.dumps(record, default=handle_date).encode("utf-8")
-                            conn.send(serialized_data + b"\n")
-                            time.sleep(send_delay)
-                            last_sent_index += 1
+                    records = []
+                    for line in file:
+                        records.append(json.loads(line))
+                        if len(records) == chunk_size:
+                            chunk = pd.DataFrame(records)
+                            print(chunk)
+                            for record in chunk.to_dict(orient="records"):
+                                serialized_data = json.dumps(record, default=handle_date).encode(
+                                    "utf-8"
+                                )
+                                conn.send(serialized_data + b"\n")
+                                time.sleep(send_delay)
+                                last_sent_index += 1
 
-                        records = []
-        except (BrokenPipeError, ConnectionResetError):
-            print("Client disconnected.")
-        finally:
-            conn.close()
-            print("Connection closed")
+                            records = []
+            except (BrokenPipeError, ConnectionResetError):
+                print("Client disconnected.")
+            finally:
+                conn.close()
+                print("Connection closed")
+    except KeyboardInterrupt:
+        print("Socket server stopped.")
+    finally:
+        s.close()
 
 
 if __name__ == "__main__":
