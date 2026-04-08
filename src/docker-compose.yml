@@ -1,15 +1,12 @@
 services:
   spark-master:
-    container_name: spark-master
     hostname: spark-master
-    build:
-      context: .
-      dockerfile: Dockerfile.spark
-    command: bin/spark-class org.apache.spark.deploy.master.Master
+    image: apache/spark:3.5.1
+    command: /bin/bash -lc "/opt/spark/sbin/start-master.sh && tail -f /opt/spark/logs/spark--org.apache.spark.deploy.master*.out"
     volumes:
-      - ./config:/opt/bitnami/spark/config
-      - ./jobs:/opt/bitnami/spark/jobs
-      - ./datasets:/opt/bitnami/spark/datasets
+      - ./config:/opt/spark/config
+      - ./jobs:/opt/spark/jobs
+      - ./datasets:/opt/spark/datasets
     ports:
       - "${SPARK_MASTER_WEB_PORT:-9090}:8080"
       - "${SPARK_MASTER_PORT:-7077}:7077"
@@ -17,22 +14,16 @@ services:
       - rts-nik
 
   spark-worker:
-    container_name: spark-worker
     hostname: spark-worker
-    build:
-      context: .
-      dockerfile: Dockerfile.spark
-    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://${SPARK_MASTER_HOST:-spark-master}:${SPARK_MASTER_PORT:-7077}
+    image: apache/spark:3.5.1
+    command: /bin/bash -lc "/opt/spark/sbin/start-worker.sh spark://${SPARK_MASTER_HOST:-spark-master}:${SPARK_MASTER_PORT:-7077} --cores ${SPARK_WORKER_CORES:-2} --memory ${SPARK_WORKER_MEMORY:-1g} && tail -f /opt/spark/logs/spark--org.apache.spark.deploy.worker*.out"
     volumes:
-      - ./config:/opt/bitnami/spark/config
-      - ./jobs:/opt/bitnami/spark/jobs
-      - ./datasets:/opt/bitnami/spark/datasets
+      - ./config:/opt/spark/config
+      - ./jobs:/opt/spark/jobs
+      - ./datasets:/opt/spark/datasets
     depends_on:
       - spark-master
     environment:
-      SPARK_MODE: worker
-      SPARK_WORKER_CORES: 2
-      SPARK_WORKER_MEMORY: 1g
       SPARK_MASTER_URL: spark://${SPARK_MASTER_HOST:-spark-master}:${SPARK_MASTER_PORT:-7077}
     networks:
       - rts-nik

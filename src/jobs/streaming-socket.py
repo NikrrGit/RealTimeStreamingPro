@@ -6,8 +6,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
-
 # Add the src directory to the Python path.
 current_dir = Path(__file__).resolve().parent
 src_dir = current_dir.parent
@@ -96,17 +94,26 @@ def send_data_over_socket(file_path, host, port, chunk_size, send_delay):
                     for line in file:
                         records.append(json.loads(line))
                         if len(records) == chunk_size:
-                            chunk = pd.DataFrame(records)
-                            print(chunk)
-                            for record in chunk.to_dict(orient="records"):
+                            print(f"Sending {len(records)} record(s)")
+                            for record in records:
                                 serialized_data = json.dumps(record, default=handle_date).encode(
                                     "utf-8"
                                 )
-                                conn.send(serialized_data + b"\n")
+                                conn.sendall(serialized_data + b"\n")
                                 time.sleep(send_delay)
                                 last_sent_index += 1
 
                             records = []
+
+                    if records:
+                        print(f"Sending final {len(records)} record(s)")
+                        for record in records:
+                            serialized_data = json.dumps(record, default=handle_date).encode(
+                                "utf-8"
+                            )
+                            conn.sendall(serialized_data + b"\n")
+                            time.sleep(send_delay)
+                            last_sent_index += 1
             except (BrokenPipeError, ConnectionResetError):
                 print("Client disconnected.")
             finally:
